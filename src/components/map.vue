@@ -29,16 +29,19 @@ export default {
 
       map.value.addControl(new NavigationControl(), 'top-right');
 
+      const userWmsUrl = "https://geoserver2.geoecomar.ro/geoserver/wms"
+
       map.value.on('load', () => {
         map.value.addSource('wms-source', {
           type: 'raster',
           tiles: [
-            'https://geoserver2.geoecomar.ro/geoserver//wms?' + 
-            'service=WMS&version=1.1.1&request=GetMap&' + 
-            'layers=PostgressSQL:LT_2016&styles=&' + 
-            'bbox={bbox-epsg-4326}&' + 
-            'width=256&height=256&' + 
-            'srs=EPSG:4326&format=image/jpeg&transparent=true'
+            'http://localhost:3001/proxy?target=' + encodeURIComponent(userWmsUrl) + '&' +
+            'service=WMS&version=1.1.1&request=GetMap&' +
+            'layers=PostgressSQL:LT_2016&styles=&' +
+            'bbox={bbox-epsg-3857}&' +
+            'width=256&height=256&' +
+            'srs=EPSG:3857&' +
+            'format=image/png&transparent=true'
           ],
         //   tiles: [
         //     // Exemple avec un WMS GeoServer
