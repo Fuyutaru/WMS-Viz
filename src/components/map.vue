@@ -1,6 +1,7 @@
 <template>
   <div class="map-wrap">
     <div class="map" ref="mapContainer"></div>
+    <Menu />
   </div>
 </template>
 
@@ -8,9 +9,13 @@
 import { Map, NavigationControl } from 'maplibre-gl';
 import { shallowRef, onMounted, onUnmounted, markRaw } from 'vue';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import Menu from './menu.vue';
 
 export default {
   name: "Map",
+  components: {
+    Menu
+  },
   setup () {
     const mapContainer = shallowRef(null);
     const map = shallowRef(null);
@@ -18,7 +23,7 @@ export default {
     onMounted(() => {
       const apiKey = 'nnaHgHcef9CvFhMovW7D';
 
-      const initialState = { lng: 29.096, lat: 44.439663, zoom: 14 };
+      const initialState = { lng: 29.096, lat: 44.439663, zoom: 5 };
 
       map.value = markRaw(new Map({
         container: mapContainer.value,

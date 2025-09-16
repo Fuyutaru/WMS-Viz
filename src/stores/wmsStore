@@ -1,0 +1,136 @@
+// in your store (e.g. stores/wmsStore.js)
+import { defineStore } from "pinia";
+
+export const useWmsStore = defineStore("wms", {
+  state: () => ({
+    capabilitiesUrl: "",
+    layerList: [],
+    layersDict: {},
+    wmsEndpoint: "",   // base URL of WMS
+    outputFormats: [], // supported GetMap formats
+  }),
+  getters: {
+    isValidUrl(state) {
+      return state.capabilitiesUrl.startsWith("http");
+    },
+    getLayerList(state) {
+      return state.layerList;
+    },
+    getLayersDict(state) {
+      return state.layersDict;
+    },
+    getWmsEndpoint(state) {
+      return state.wmsEndpoint;
+    },
+    getOutputFormats(state) {
+      return state.outputFormats;
+    },
+  },
+  actions: {
+    setUrl(url) {
+      this.capabilitiesUrl = 'http://localhost:3001/proxy?target=' + encodeURIComponent(url);
+    },
+    async fetchCapabilities() {
+      if (!this.capabilitiesUrl) {
+        throw new Error("URL non définie");
+      }
+      try {
+        const response = await fetch(this.capabilitiesUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const text = await response.text();
+        return text;
+      } catch (err) {
+        console.error("Erreur fetchCapabilities:", err);
+        throw err;
+      }
+    },
+    async parseAndStoreCapabilities() {
+      // fetch the capabilities XML
+      const text = await this.fetchCapabilities();
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(text, "application/xml");
+
+      // check for parser errors
+      const parserError = xml.querySelector("parsererror");
+      if (parserError) {
+        console.error("Error parsing XML:", parserError.textContent);
+        throw new Error("Invalid XML in capabilities");
+      }
+
+      // 1. Extract WMS endpoint base URL
+      const getMapNode = xml.querySelector("Capability > Request > GetCapabilities > DCPType > HTTP > Get > OnlineResource");
+      let endpoint = "";
+      if (getMapNode) {
+        // OnlineResource may have attributes xlink:href or href
+        endpoint = getMapNode.getAttribute("xlink:href") || getMapNode.getAttribute("href") || "";
+      }
+      if (!endpoint) {
+        // strip off query params from the capabilities URL
+        endpoint = this.capabilitiesUrl.split('?')[0];
+      }
+      this.wmsEndpoint = endpoint;
+
+      // 2. Extract output formats supported by GetMap
+      const formatNodes = xml.querySelectorAll("Capability > Request > GetMap > Format");
+      const formats = Array.from(formatNodes).map(fn => fn.textContent.trim());
+      this.outputFormats = formats;
+
+      // 3. Extract layers: name, styles, bbox
+      const layersDict = {};
+      const layerNodes = xml.querySelectorAll("Capability > Layer Layer");  
+      // Note: in WMS Capabilities, there's a root <Layer> and then nested <Layer> elements.
+      // We want the ones that have a <Name> child (named layers), so filter out group-only layers.
+
+      layerNodes.forEach(layerEl => {
+        const nameEl = layerEl.querySelector("Name");
+        if (!nameEl) return;  // skip layers without a name
+        const layerName = nameEl.textContent.trim();
+
+        // get styles: collection of style names and title or legend URL if present
+        const styles = Array.from(layerEl.querySelectorAll("Style")).map(styleEl => {
+          const styleNameEl = styleEl.querySelector("Name");
+          const styleTitleEl = styleEl.querySelector("Title");
+          const legendURLnode = styleEl.querySelector("LegendURL OnlineResource, or LegendURL > Format etc");
+          const legendURL = legendURLnode 
+            ? (legendURLnode.getAttribute("xlink:href") || legendURLnode.getAttribute("href") || "") 
+            : "";
+          return {
+            name: styleNameEl ? styleNameEl.textContent.trim() : null,
+            title: styleTitleEl ? styleTitleEl.textContent.trim() : null,
+            legend: legendURL
+          };
+        });
+
+        // get bounding box: can be several kinds, e.g. <BoundingBox SRS="EPSG:XXXX" minx=".." miny=".." maxx=".." maxy="..">
+        const bboxEl = layerEl.querySelector("BoundingBox");
+        let bbox = null;
+        if (bboxEl) {
+          bbox = {
+            srs: bboxEl.getAttribute("SRS") || bboxEl.getAttribute("CRS") || null,
+            minx: parseFloat(bboxEl.getAttribute("minx")),
+            miny: parseFloat(bboxEl.getAttribute("miny")),
+            maxx: parseFloat(bboxEl.getAttribute("maxx")),
+            maxy: parseFloat(bboxEl.getAttribute("maxy"))
+          };
+        }
+
+        // also optional: title or abstract
+        const titleEl = layerEl.querySelector("Title");
+        const abstractEl = layerEl.querySelector("Abstract");
+
+        layersDict[layerName] = {
+          name: layerName,
+          title: titleEl ? titleEl.textContent.trim() : null,
+          abstract: abstractEl ? abstractEl.textContent.trim() : null,
+          styles: styles,
+          bbox: bbox,
+        };
+      });
+
+      this.layersDict = layersDict;
+      this.layerList = Object.values(layersDict);
+    },
+  }
+});
