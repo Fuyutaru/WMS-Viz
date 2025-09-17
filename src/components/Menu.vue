@@ -7,6 +7,7 @@
 
     <div v-show="!isCollapsed" class="menu-box">
         <searchbox />
+        <add-box />
     </div>
 
   </div>
@@ -14,11 +15,13 @@
 
 <script>
 import Searchbox from './searchbox.vue';
+import addBox from './addBox.vue';
 
 export default {
     name: "Menu",
     components: {
-        Searchbox
+        Searchbox,
+        addBox
     },
     data() {
         return {

@@ -9,7 +9,7 @@
 import { Map, NavigationControl } from 'maplibre-gl';
 import { shallowRef, onMounted, onUnmounted, markRaw } from 'vue';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import Menu from './menu.vue';
+import Menu from './Menu.vue';
 
 export default {
   name: "Map",

@@ -8,6 +8,7 @@ export const useWmsStore = defineStore("wms", {
     layersDict: {},
     wmsEndpoint: "",   // base URL of WMS
     outputFormats: [], // supported GetMap formats
+    selectedLayer: {},
   }),
   getters: {
     isValidUrl(state) {
@@ -25,10 +26,32 @@ export const useWmsStore = defineStore("wms", {
     getOutputFormats(state) {
       return state.outputFormats;
     },
+    getSelectedLayer(state) {
+      return state.selectedLayer;
+    },
+    getLayerFitBounds: (state) => (layerName) => {
+      const layer = state.layersDict[layerName];
+      if (!layer || !layer.bbox) return null;
+
+      const { minx, miny, maxx, maxy } = layer.bbox;
+
+      return [
+        [minx, miny],
+        [maxx, maxy]
+      ];
+    },
   },
   actions: {
     setUrl(url) {
       this.capabilitiesUrl = 'http://localhost:3001/proxy?target=' + encodeURIComponent(url);
+    },
+    addSelectedLayer(layer) {
+      for (let key in this.selectedLayer) {
+        if (this.selectedLayer[key].name === layer.name) {
+          return;
+        }
+      }
+      this.selectedLayer[layer.name] = layer;
     },
     async fetchCapabilities() {
       if (!this.capabilitiesUrl) {
@@ -51,6 +74,11 @@ export const useWmsStore = defineStore("wms", {
       const text = await this.fetchCapabilities();
       const parser = new DOMParser();
       const xml = parser.parseFromString(text, "application/xml");
+
+      const root = xml.querySelector("WMS_Capabilities, WMT_MS_Capabilities");
+      const version = root ? root.getAttribute("version") : "1.1.1";
+
+      console.log("Parsed WMS version:", version);
 
       // check for parser errors
       const parserError = xml.querySelector("parsererror");
@@ -103,20 +131,43 @@ export const useWmsStore = defineStore("wms", {
           };
         });
 
-        // get bounding box: can be several kinds, e.g. <BoundingBox SRS="EPSG:XXXX" minx=".." miny=".." maxx=".." maxy="..">
-        const bboxEl = layerEl.querySelector("BoundingBox");
+
         let bbox = null;
-        if (bboxEl) {
-          bbox = {
-            srs: bboxEl.getAttribute("SRS") || bboxEl.getAttribute("CRS") || null,
-            minx: parseFloat(bboxEl.getAttribute("minx")),
-            miny: parseFloat(bboxEl.getAttribute("miny")),
-            maxx: parseFloat(bboxEl.getAttribute("maxx")),
-            maxy: parseFloat(bboxEl.getAttribute("maxy"))
-          };
+        if (version === "1.1.1") {
+          const llbboxEl = layerEl.querySelector("LatLonBoundingBox");
+          if (llbboxEl) {
+            bbox = {
+              srs: "EPSG:4326",
+              minx: parseFloat(llbboxEl.getAttribute("minx")),
+              miny: parseFloat(llbboxEl.getAttribute("miny")),
+              maxx: parseFloat(llbboxEl.getAttribute("maxx")),
+              maxy: parseFloat(llbboxEl.getAttribute("maxy"))
+            };
+          }
+        } else if (version === "1.3.0") {
+          const exBBoxEl = layerEl.querySelector("EX_GeographicBoundingBox");
+          if (exBBoxEl) {
+            bbox = {
+              srs: "EPSG:4326",
+              minx: parseFloat(exBBoxEl.querySelector("westBoundLongitude")?.textContent),
+              miny: parseFloat(exBBoxEl.querySelector("southBoundLatitude")?.textContent),
+              maxx: parseFloat(exBBoxEl.querySelector("eastBoundLongitude")?.textContent),
+              maxy: parseFloat(exBBoxEl.querySelector("northBoundLatitude")?.textContent)
+            };
+          }
+        } else {
+          const bboxEl = layerEl.querySelector("BoundingBox");
+          if (bboxEl) {
+            bbox = {
+              srs: bboxEl.getAttribute("SRS") || bboxEl.getAttribute("CRS") || null,
+              minx: parseFloat(bboxEl.getAttribute("minx")),
+              miny: parseFloat(bboxEl.getAttribute("miny")),
+              maxx: parseFloat(bboxEl.getAttribute("maxx")),
+              maxy: parseFloat(bboxEl.getAttribute("maxy"))
+            };
+          }
         }
 
-        // also optional: title or abstract
         const titleEl = layerEl.querySelector("Title");
         const abstractEl = layerEl.querySelector("Abstract");
 
@@ -124,8 +175,8 @@ export const useWmsStore = defineStore("wms", {
           name: layerName,
           title: titleEl ? titleEl.textContent.trim() : null,
           abstract: abstractEl ? abstractEl.textContent.trim() : null,
-          styles: styles,
-          bbox: bbox,
+          styles,
+          bbox,
         };
       });
 

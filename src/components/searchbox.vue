@@ -20,7 +20,7 @@ export default {
   name: "Searchbox",
   data() {
     return {
-      userInput: ""
+      userInput: "https://geoserver2.geoecomar.ro/geoserver//wms?service=WMS&request=GetCapabilities&version=1.1.1"
     };
   },
   methods: {
@@ -37,6 +37,7 @@ export default {
         console.log("Styles dictionary:", wmsStore.getOutputFormats);
       } catch (err) {
         console.error("Erreur lors de la récupération des capacités :", err);
+        alert("Failed to fetch or parse capabilities. Please check the URL and try again.");
       }
     }
   }
@@ -62,7 +63,7 @@ export default {
   border: none;
   background-color: #007BFF;
   color: white;
-  border-radius: 6px;
+  border-radius: 3px;
   cursor: pointer;
 }
 </style>
