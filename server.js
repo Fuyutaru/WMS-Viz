@@ -8,6 +8,7 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*')
   res.header('Access-Control-Allow-Methods', 'GET,OPTIONS')
   res.header('Access-Control-Allow-Headers', 'Content-Type')
+  res.header('Cache-Control', 'public, max-age=31536000, immutable')
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200)
   }
@@ -25,7 +26,8 @@ app.use('/proxy', (req, res, next) => {
     target,
     changeOrigin: true,
     secure: false,
-    pathRewrite: { '^/proxy': '' }
+    pathRewrite: { '^/proxy': '' },
+
   })(req, res, next)
 })
 
