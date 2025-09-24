@@ -53,6 +53,12 @@ export const useWmsStore = defineStore("wms", {
       }
       this.selectedLayer[layer.name] = layer;
     },
+
+    removeSelectedLayer(layerName) {
+      if (this.selectedLayer[layerName]) {
+        delete this.selectedLayer[layerName];
+      }
+    },
     async fetchCapabilities() {
       if (!this.capabilitiesUrl) {
         throw new Error("URL non définie");

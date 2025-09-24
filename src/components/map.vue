@@ -39,50 +39,21 @@ export default {
 
       const userWmsUrl = "https://geoserver2.geoecomar.ro/geoserver/wms"
 
-      // map.value.on('load', () => {
-      //   map.value.addSource('wms-source', {
-      //     type: 'raster',
-      //     tiles: [
-      //       'http://localhost:3001/proxy?target=' + encodeURIComponent(userWmsUrl) + '&' +
-      //       'service=WMS&version=1.1.1&request=GetMap&' +
-      //       'layers=PostgressSQL:LT_2016&styles=&' +
-      //       'bbox={bbox-epsg-3857}&' +
-      //       'width=256&height=256&' +
-      //       'srs=EPSG:3857&' +
-      //       'format=image/png&transparent=true'
-      //     ],
-      //   //   tiles: [
-      //   //     // Exemple avec un WMS GeoServer
-      //   //     'https://ahocevar.com/geoserver/wms?' +
-      //   //     'service=WMS&version=1.1.1&request=GetMap&' +
-      //   //     'layers=topp:states&styles=&' +
-      //   //     'bbox={bbox-epsg-3857}&' + // maplibre remplace {bbox-epsg-3857}
-      //   //     'width=256&height=256&' +
-      //   //     'srs=EPSG:3857&format=image/png&transparent=true'
-      //   //   ],
-      //     tileSize: 256
-      //   })
-
-      //   map.value.addLayer({
-      //     id: 'wms-layer',
-      //     type: 'raster',
-      //     source: 'wms-source',
-      //     paint: {}
-      //   })
-      // })
-
 
       watch(
-        () => wmsStore.selectedLayer,
-        (layers) => {
+        () => ({ ...wmsStore.selectedLayer }),
+        (newLayers, oldLayers) => {
           if (!map.value) return;
 
-          Object.values(layers).forEach((layer) => {
-            const sourceId = `wms-source-${layer.name}`;
-            const layerId = `wms-layer-${layer.name}`;
+          const newLayerNames = Object.keys(newLayers);
+          const oldLayerNames = oldLayers ? Object.keys(oldLayers) : [];
+
+          newLayerNames.forEach((name) => {
+            const layer = newLayers[name];
+            const sourceId = `wms-source-${name}`;
+            const layerId = `wms-layer-${name}`;
 
             if (!map.value.getSource(sourceId)) {
-              // Add WMS source
               map.value.addSource(sourceId, {
                 type: "raster",
                 tiles: [
@@ -95,12 +66,25 @@ export default {
                 tileSize: 256,
               });
 
-              // Add WMS layer
               map.value.addLayer({
                 id: layerId,
                 type: "raster",
                 source: sourceId,
               });
+            }
+          });
+
+          oldLayerNames.forEach((name) => {
+            if (!newLayerNames.includes(name)) {
+              const sourceId = `wms-source-${name}`;
+              const layerId = `wms-layer-${name}`;
+
+              if (map.value.getLayer(layerId)) {
+                map.value.removeLayer(layerId);
+              }
+              if (map.value.getSource(sourceId)) {
+                map.value.removeSource(sourceId);
+              }
             }
           });
         },
