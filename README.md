@@ -1,19 +1,24 @@
 # WMS-Viz
 
-This template should help get you started developing with Vue 3 in Vite.
+## installation
 
-## Recommended IDE Setup
+### Prerequisites
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
+- [Node.js](https://nodejs.org/) (v16+ recommended)
+- [npm](https://www.npmjs.com/) (comes with Node.js)
 
 ## Project Setup
 
 ```sh
 npm install
+```
+
+### Enable proxy
+
+In this project's root directory, run the following command to enable the proxy:
+
+```sh
+node server.js
 ```
 
 ### Compile and Hot-Reload for Development
